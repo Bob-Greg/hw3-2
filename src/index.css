@@ -11,3 +11,8 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.max {
+  max-height: calc(100vh - 160px);
+  overflow: auto;
+}

@@ -1,6 +1,4 @@
-import React, {useState} from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, {useEffect, useState} from 'react';
 import { initializeApp } from 'firebase/app'
 import { getFirestore, doc, setDoc, collection, getDocs } from 'firebase/firestore'
 
@@ -19,14 +17,19 @@ type Dat = {
     coords: string
 }
 
-async function save(coords: string, setList: (_:Dat[]) => void) {
+async function save(coords: string, setList: (_:Dat[]) => void, list: Dat[]) {
     const time = new Date().getTime()
     const doc_ = doc(firestore, `coords/${time}`)
+    const newl = [...list]
+    newl.push({
+        timestamp: time,
+        coords: coords
+    })
+    setList(newl)
     await setDoc(doc_, {
         timestamp: time,
         coords: coords
     })
-    getList(setList)
 }
 
 async function getList(setList: (_:Dat[]) => void) {
@@ -40,28 +43,65 @@ async function getList(setList: (_:Dat[]) => void) {
     setList(list)
 }
 
-let full = ""
+function round(num: number) {
+    return Math.floor(num * 100) / 100
+}
+
+let coords_ = [0, 0, 0, 0]
+let err = ""
+
+function arrts(arr: Array<any>) {
+    let str = "["
+    str += arr.toString().replaceAll(",", ", ")
+    str += "]"
+    return str
+}
 
 function App() {
 
     const [list, setList] = useState([] as Dat[])
-    const [coords, setCoords] = useState('')
+    const [display, setDisplay] = useState(<div/>)
 
-    navigator.geolocation.watchPosition((position) => {
-        full = `Position(latitude=${position.coords.latitude},longitude=${position.coords.longitude},altitude=${position.coords.altitude})`
-    });
+    useEffect(() => {
+        getList(setList)
+    }, [])
 
-    setInterval(() => setCoords(full), 500)
+    setInterval(() => {
+        navigator.geolocation.getCurrentPosition((position) => {
+            coords_[0] = (position.coords.latitude)
+            coords_[1] = (position.coords.longitude)
+            coords_[2] = (position.coords.altitude === null ? 0 : position.coords.altitude)
+            coords_[3] = new Date().getTime()
+            err = ""
+        }, (err1) => {
+            err = err1.message
+        })
+    }, 100)
+
+    setInterval(() => {
+        if (err === "") {
+            setDisplay(<ul>
+                <li>latitude: {coords_[0]}</li>
+                <li>longitude: {coords_[1]}</li>
+                <li>altitude: {coords_[2]}</li>
+                <li>time: {coords_[3]}</li>
+            </ul>)
+        } else {
+            setDisplay(<div className={"color:red"}>{err}</div>)
+        }
+    }, 500)
 
     return (
         <div>
-            You're at {coords}
-            <button onClick={() => save(full, setList)}>
-                save coords
+            You're at {display}
+            <button onClick={() => save(arrts(coords_), setList, list)}>
+                Save location
             </button>
-            <ul>
-                {list.map((dat) => <li>${dat.coords}@${dat.timestamp}</li>)}
-            </ul>
+            <div className={"max"}>
+                <ul>
+                    {list.map((dat) => <li>{dat.coords}@{dat.timestamp}</li>)}
+                </ul>
+            </div>
         </div>
     );
 }
